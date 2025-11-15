@@ -1,51 +1,30 @@
 pipeline {
     agent any
 
-    options {
-        skipStagesAfterUnstable()
-    }
-
-    tools {
-        maven '3.9.1'
-    }
-
     stages {
-        stage('Checkout Source Code') {
+
+        stage('Build with Maven') {
             steps {
-                git branch: 'main', url: 'https://github.com/dale2895/gs-spring-boot.git'
+                sh './mvnw clean package'
             }
         }
 
-        stage('Test') {
+        stage('Upload JAR to Nexus') {
             steps {
-                sh 'git --version'
-                sh 'mvn --version'
-                sh './mvnw clean test' // Example for a Maven project
+                sh '''
+                JAR_FILE=target/spring-boot-complete-0.0.1.jar
+
+                curl -v -u admin:admin123 \
+                     --upload-file $JAR_FILE \
+                     "http://localhost:8081/repository/maven-releases/com/example/springboot/spring-boot-complete/0.0.1/spring-boot-complete-0.0.1.jar"
+                '''
             }
         }
 
-        stage('Build and Package') {
-            steps {
-                sh './mvnw clean package -DskipTests'
-            }
-        }
-
-        stage('Archive Artifacts') {
+        stage('Archive Artifact') {
             steps {
                 archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
             }
-        }
-    }
-
-    post {
-        always {
-            echo 'Pipeline finished.'
-        }
-        success {
-            echo 'Build successful!'
-        }
-        failure {
-            echo 'Build failed!'
         }
     }
 }
